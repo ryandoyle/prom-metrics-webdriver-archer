@@ -7,7 +7,6 @@ Exposes /metrics endpoint that can be scraped by Prometheus.
 import os
 import sys
 import time
-import threading
 from flask import Flask, Response
 from prometheus_client import Gauge, generate_latest, REGISTRY
 from selenium import webdriver
@@ -28,11 +27,7 @@ signal_strength_gauge = Gauge('lte_signal_strength_percent', 'Signal Strength pe
 scrape_success_gauge = Gauge('lte_scrape_success', 'Whether the last scrape was successful (1=success, 0=failure)')
 scrape_duration_gauge = Gauge('lte_scrape_duration_seconds', 'Duration of the last scrape in seconds')
 last_successful_scrape_gauge = Gauge('lte_last_successful_scrape_timestamp', 'Unix timestamp of the last successful scrape')
-seconds_since_last_scrape_gauge = Gauge('lte_seconds_since_last_scrape', 'Seconds elapsed since the last scrape attempt')
 
-# Global variable to store the last scrape time
-last_scrape_time = 0
-SCRAPE_INTERVAL = 60  # Scrape every 60 seconds
 
 
 def parse_metric_value(value_str, unit=''):
@@ -168,57 +163,39 @@ def scrape_metrics():
         driver.quit()
 
 
-def update_metrics():
-    """
-    Periodically update Prometheus metrics by scraping the device.
-    Runs in a background thread.
-    """
-    global last_scrape_time
-    
-    while True:
-        try:
-            result = scrape_metrics()
-            
-            if result is None:
-                scrape_success_gauge.set(0)
-            else:
-                metrics, duration = result
-                scrape_duration_gauge.set(duration)
-                
-                # Update gauges with new values
-                if metrics['lte_rsrp'] is not None:
-                    lte_rsrp_gauge.set(metrics['lte_rsrp'])
-                if metrics['lte_rsrq'] is not None:
-                    lte_rsrq_gauge.set(metrics['lte_rsrq'])
-                if metrics['lte_snr'] is not None:
-                    lte_snr_gauge.set(metrics['lte_snr'])
-                if metrics['signal_strength'] is not None:
-                    signal_strength_gauge.set(metrics['signal_strength'])
-                
-                # Update success indicators
-                scrape_success_gauge.set(1)
-                current_time = time.time()
-                last_scrape_time = current_time
-                last_successful_scrape_gauge.set(current_time)
-        
-        except Exception as e:
-            print(f"Error in metrics update loop: {str(e)}", file=sys.stderr)
-            scrape_success_gauge.set(0)
-        
-        # Wait before next scrape
-        time.sleep(SCRAPE_INTERVAL)
-
-
 @app.route('/metrics')
 def metrics():
     """
     Prometheus metrics endpoint.
-    Returns metrics in Prometheus text format.
+    Scrapes metrics on-demand and returns them in Prometheus text format.
     """
-    # Update the seconds since last scrape metric
-    if last_scrape_time > 0:
-        seconds_since_last_scrape = time.time() - last_scrape_time
-        seconds_since_last_scrape_gauge.set(seconds_since_last_scrape)
+    try:
+        result = scrape_metrics()
+        
+        if result is None:
+            scrape_success_gauge.set(0)
+        else:
+            metrics_data, duration = result
+            scrape_duration_gauge.set(duration)
+            
+            # Update gauges with new values
+            if metrics_data['lte_rsrp'] is not None:
+                lte_rsrp_gauge.set(metrics_data['lte_rsrp'])
+            if metrics_data['lte_rsrq'] is not None:
+                lte_rsrq_gauge.set(metrics_data['lte_rsrq'])
+            if metrics_data['lte_snr'] is not None:
+                lte_snr_gauge.set(metrics_data['lte_snr'])
+            if metrics_data['signal_strength'] is not None:
+                signal_strength_gauge.set(metrics_data['signal_strength'])
+            
+            # Update success indicators
+            scrape_success_gauge.set(1)
+            current_time = time.time()
+            last_successful_scrape_gauge.set(current_time)
+    
+    except Exception as e:
+        print(f"Error scraping metrics: {str(e)}", file=sys.stderr)
+        scrape_success_gauge.set(0)
     
     return Response(generate_latest(REGISTRY), mimetype='text/plain')
 
@@ -228,7 +205,7 @@ def health():
     """
     Health check endpoint.
     """
-    return {'status': 'healthy', 'last_scrape': last_scrape_time}, 200
+    return {'status': 'healthy'}, 200
 
 
 @app.route('/')
@@ -260,15 +237,11 @@ def main():
         print("Please set it using: export ADMIN_PASS='your_password'", file=sys.stderr)
         sys.exit(1)
     
-    # Start the background thread for metric updates
-    print("Starting metrics update thread...")
-    update_thread = threading.Thread(target=update_metrics, daemon=True)
-    update_thread.start()
-    
     # Start the Flask web server
     port = int(os.getenv('PORT', 8000))
     print(f"Starting metrics server on port {port}...")
     print(f"Metrics endpoint: http://0.0.0.0:{port}/metrics")
+    print("Note: Metrics will be scraped on-demand when /metrics is requested")
     app.run(host='0.0.0.0', port=port)
 
 

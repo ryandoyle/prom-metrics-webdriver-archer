@@ -7,7 +7,7 @@ _fyi: 99% of this is AI/vibe generated_
 ## Features
 
 - **Prometheus metrics endpoint** at `/metrics`
-- **Automated scraping** of LTE signal metrics every 60 seconds
+- **On-demand scraping** of LTE signal metrics when Prometheus requests them
 - **Exposed metrics**:
   - `lte_rsrp_dbm`: LTE Reference Signal Received Power in dBm
   - `lte_rsrq_db`: LTE Reference Signal Received Quality in dB
@@ -71,8 +71,11 @@ scrape_configs:
   - job_name: 'lte-metrics'
     static_configs:
       - targets: ['localhost:8000']
-    scrape_interval: 60s
+    scrape_interval: 60s  # Adjust based on your needs
+    scrape_timeout: 50s   # Allow enough time for webdriver to complete
 ```
+
+**Note:** Each Prometheus scrape will trigger a fresh webdriver session to collect metrics. The `scrape_interval` determines how often Prometheus will request metrics, and each request will take ~15-30 seconds to complete as it runs the webdriver automation.
 
 ## Metrics Endpoint
 
@@ -149,14 +152,15 @@ curl http://localhost:8000/metrics
 
 The metrics server:
 1. Starts a Flask web server on port 8000
-2. Launches a background thread that scrapes metrics every 60 seconds
-3. Uses Selenium WebDriver to:
+2. Waits for requests to the `/metrics` endpoint
+3. When `/metrics` is requested, it uses Selenium WebDriver to:
    - Navigate to the device web interface
    - Log in with the provided credentials
    - Navigate to the advanced menu
    - Extract LTE signal metrics
-4. Exposes the metrics in Prometheus format at `/metrics`
-5. Updates the metrics on each successful scrape
+4. Returns the metrics in Prometheus format
+5. Each request triggers a fresh scrape, ensuring up-to-date data
+
 
 ## Standalone WebDriver Script
 
@@ -213,8 +217,9 @@ docker-compose exec lte-metrics python webdriver_login.py
 
 ## Notes
 
-- The scraper runs every 60 seconds by default
+- Metrics are scraped on-demand when the `/metrics` endpoint is requested
+- Each scrape triggers a fresh webdriver session (takes ~15-30 seconds)
 - Uses headless Chrome for automation
 - Runs with host network mode to access local network IPs
-- Metrics are preserved between scrapes (they don't reset to 0)
-- The `lte_last_successful_scrape_timestamp` metric helps monitor scrape freshness
+- The `lte_last_successful_scrape_timestamp` metric shows when the last successful scrape occurred
+- Set appropriate Prometheus `scrape_timeout` to allow enough time for the webdriver to complete

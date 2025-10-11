@@ -5,7 +5,7 @@ services:
     build: .
     image: lte-metrics-exporter:latest
     environment:
-      - LOGIN_URL=192.168.1.1
+      - LOGIN_URL=${LOGIN_URL}
       - ADMIN_PASS=${ADMIN_PASS}
       - PORT=8000
     ports:
