@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  lte-metrics:
+    build: .
+    image: lte-metrics-exporter:latest
+    environment:
+      - LOGIN_URL=192.168.1.1
+      - ADMIN_PASS=${ADMIN_PASS}
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
