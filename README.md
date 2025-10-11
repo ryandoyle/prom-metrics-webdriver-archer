@@ -2,6 +2,8 @@
 
 This project provides a Prometheus metrics exporter for LTE signal metrics. It uses Selenium WebDriver to scrape LTE signal data from an TP-Link Archer MR600 and exposes it as Prometheus metrics.
 
+_fyi: 99% of this is AI/vibe generated_
+
 ## Features
 
 - **Prometheus metrics endpoint** at `/metrics`
@@ -10,7 +12,7 @@ This project provides a Prometheus metrics exporter for LTE signal metrics. It u
   - `lte_rsrp_dbm`: LTE Reference Signal Received Power in dBm
   - `lte_rsrq_db`: LTE Reference Signal Received Quality in dB
   - `lte_snr_db`: LTE Signal to Noise Ratio in dB
-  - `signal_strength_percent`: Signal Strength percentage
+  - `lte_signal_strength_percent`: Signal Strength percentage
   - `lte_scrape_success`: Whether the last scrape was successful (1=success, 0=failure)
   - `lte_scrape_duration_seconds`: Duration of the last scrape in seconds
   - `lte_last_successful_scrape_timestamp`: Unix timestamp of the last successful scrape
@@ -89,9 +91,9 @@ lte_rsrq_db -11.0
 # TYPE lte_snr_db gauge
 lte_snr_db 14.0
 
-# HELP signal_strength_percent Signal Strength percentage
-# TYPE signal_strength_percent gauge
-signal_strength_percent 100.0
+# HELP lte_signal_strength_percent Signal Strength percentage
+# TYPE lte_signal_strength_percent gauge
+lte_signal_strength_percent 100.0
 
 # HELP lte_scrape_success Whether the last scrape was successful (1=success, 0=failure)
 # TYPE lte_scrape_success gauge
@@ -177,7 +179,7 @@ groups:
   - name: lte_alerts
     rules:
       - alert: LowSignalStrength
-        expr: signal_strength_percent < 50
+        expr: lte_signal_strength_percent < 50
         for: 5m
         annotations:
           summary: "LTE signal strength is low"
