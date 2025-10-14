@@ -3,6 +3,7 @@ version: '3.8'
 services:
   lte-metrics:
     build: .
+    init: true
     image: lte-metrics-exporter:latest
     environment:
       - LOGIN_URL=${LOGIN_URL}
