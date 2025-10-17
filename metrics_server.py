@@ -7,6 +7,7 @@ Exposes /metrics endpoint that can be scraped by Prometheus.
 import os
 import sys
 import time
+import logging
 from flask import Flask, Response
 from prometheus_client import Gauge, generate_latest, REGISTRY
 from selenium import webdriver
@@ -14,6 +15,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 # Create Flask app
@@ -57,20 +65,20 @@ def scrape_metrics():
     # Get URL from environment variable
     url = os.getenv('LOGIN_URL')
     if not url:
-        print("Error: LOGIN_URL environment variable is not set", file=sys.stderr)
+        logger.error("LOGIN_URL environment variable is not set")
         return None
     
     # Get password from environment variable
     password = os.getenv('ADMIN_PASS')
     if not password:
-        print("Error: ADMIN_PASS environment variable is not set", file=sys.stderr)
+        logger.error("ADMIN_PASS environment variable is not set")
         return None
     
     # Add http:// if not present
     if not url.startswith(('http://', 'https://')):
         url = f'http://{url}'
     
-    print(f"Scraping metrics from: {url}")
+    logger.info(f"Scraping metrics from: {url}")
     
     # Initialize the WebDriver with headless Chrome
     options = webdriver.ChromeOptions()
@@ -147,17 +155,17 @@ def scrape_metrics():
         }
         
         duration = time.time() - start_time
-        print(f"Metrics scraped successfully in {duration:.2f}s:")
-        print(f"  lteRsrp: {lte_rsrp_value}")
-        print(f"  lteRsrq: {lte_rsrq_value}")
-        print(f"  lteSnr: {lte_snr_value}")
-        print(f"  signalStrength: {signal_strength_value}")
+        logger.info(f"Metrics scraped successfully in {duration:.2f}s:")
+        logger.info(f"  lteRsrp: {lte_rsrp_value}")
+        logger.info(f"  lteRsrq: {lte_rsrq_value}")
+        logger.info(f"  lteSnr: {lte_snr_value}")
+        logger.info(f"  signalStrength: {signal_strength_value}")
         
         return metrics, duration
         
     except Exception as e:
         duration = time.time() - start_time
-        print(f"Error scraping metrics: {str(e)}", file=sys.stderr)
+        logger.error(f"Error scraping metrics: {str(e)}")
         return None, duration
     finally:
         driver.quit()
@@ -194,7 +202,7 @@ def metrics():
             last_successful_scrape_gauge.set(current_time)
     
     except Exception as e:
-        print(f"Error scraping metrics: {str(e)}", file=sys.stderr)
+        logger.error(f"Error scraping metrics: {str(e)}")
         scrape_success_gauge.set(0)
     
     return Response(generate_latest(REGISTRY), mimetype='text/plain')
@@ -228,20 +236,20 @@ def main():
     """
     # Check environment variables
     if not os.getenv('LOGIN_URL'):
-        print("Error: LOGIN_URL environment variable is not set", file=sys.stderr)
-        print("Please set it using: export LOGIN_URL='192.168.101.1'", file=sys.stderr)
+        logger.error("LOGIN_URL environment variable is not set")
+        logger.error("Please set it using: export LOGIN_URL='192.168.101.1'")
         sys.exit(1)
     
     if not os.getenv('ADMIN_PASS'):
-        print("Error: ADMIN_PASS environment variable is not set", file=sys.stderr)
-        print("Please set it using: export ADMIN_PASS='your_password'", file=sys.stderr)
+        logger.error("ADMIN_PASS environment variable is not set")
+        logger.error("Please set it using: export ADMIN_PASS='your_password'")
         sys.exit(1)
     
     # Start the Flask web server
     port = int(os.getenv('PORT', 8000))
-    print(f"Starting metrics server on port {port}...")
-    print(f"Metrics endpoint: http://0.0.0.0:{port}/metrics")
-    print("Note: Metrics will be scraped on-demand when /metrics is requested")
+    logger.info(f"Starting metrics server on port {port}...")
+    logger.info(f"Metrics endpoint: http://0.0.0.0:{port}/metrics")
+    logger.info("Note: Metrics will be scraped on-demand when /metrics is requested")
     app.run(host='0.0.0.0', port=port)
 
 
