@@ -155,11 +155,7 @@ def scrape_metrics():
         }
         
         duration = time.time() - start_time
-        logger.info(f"Metrics scraped successfully in {duration:.2f}s:")
-        logger.info(f"  lteRsrp: {lte_rsrp_value}")
-        logger.info(f"  lteRsrq: {lte_rsrq_value}")
-        logger.info(f"  lteSnr: {lte_snr_value}")
-        logger.info(f"  signalStrength: {signal_strength_value}")
+        logger.info(f"Metrics scraped successfully in {duration:.2f}s: lteRsrp={lte_rsrp_value}, lteRsrq={lte_rsrq_value}, lteSnr={lte_snr_value}, signalStrength={signal_strength_value}")
         
         return metrics, duration
         
