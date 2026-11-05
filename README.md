@@ -115,7 +115,7 @@ lte_last_successful_scrape_timestamp 1736593241.0
 
 ### Prerequisites
 
-- Python 3.6 or higher
+- Python 3.10 or higher (Docker uses Python 3.15)
 - Chrome browser installed
 - ChromeDriver (Selenium will manage this automatically with Selenium 4+)
 
